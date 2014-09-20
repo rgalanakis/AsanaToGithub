@@ -1,0 +1,15 @@
+--asana-api-key=abc-myasanakey-111
+--username=myghusername
+--password=ghpassword-or-accesstoken
+
+--projectid=11111111111111
+--repo=rgalanakis/AsanaToGithub
+
+# Lines beginning with # are comments.
+--dont-apply-tag
+#--dont-apply-label
+--dont-apply-project-label
+--dont-update-story
+
+#--verbose
+-i
