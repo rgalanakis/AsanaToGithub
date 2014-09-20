@@ -202,7 +202,7 @@ def copy_task_to_github(asana_api_object, task, task_id, git_repo, options):
                 a_label = git_repo.create_label(project['name'], 'FFFFFF')
             labels.append(a_label)
     print('Creating issue: {}'.format(task['name'].encode('utf-8')))
-    meta = '### Meta\n[Asana task](https://app.asana.com/0/{}/{}) was created at {}.'.format(
+    meta = '#### Meta\n[Asana task](https://app.asana.com/0/{}/{}) was created at {}.'.format(
         task['workspace']['id'], task_id, dtparser.parse(task['created_at']).strftime('%b-%d-%Y %H:%M %Z'))
     if task['due_on']:
         meta = meta + ' It is due on {}.'.format(dtparser.parse(task['due_on']).strftime('%b-%d-%Y'))
