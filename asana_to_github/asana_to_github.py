@@ -1,5 +1,5 @@
 from __future__ import print_function
-from optparse import OptionParser
+from argparse import ArgumentParser
 
 from asana import asana
 from dateutil import parser as dtparser
@@ -9,43 +9,44 @@ from github import Github
 def parse():
     """Returns OptionParser instance to parse the command line parameters"""
 
-    parser = OptionParser('usage: %prog [options]')
-    parser.add_option('-u', '--username', help='GitHub username.')
-    parser.add_option('-p', '--password', help='GitHub password')
-    parser.add_option('-a', '--asana-api-key', help='Asana API Key.')
-    parser.add_option(
+    parser = ArgumentParser()
+    parser.add_argument('-u', '--username', help='GitHub username.')
+    parser.add_argument('-p', '--password', help='GitHub password')
+    parser.add_argument('-a', '--asana-api-key', dest='asana_api_key', help='Asana API Key.')
+    parser.add_argument(
         '-w', '--workspace',
         help='WORKSPACE name which has the project you want to copy to Github. '
              'If none is specified a list of available workspaces is printed.')
-    parser.add_option(
+    parser.add_argument(
         '-P', '--project',
         help='PROJECT name which has the items you want to copy to Github. '
              'If none is specified a list of available projects is printed.')
-    parser.add_option(
+    parser.add_argument(
         '-r', '--repo',
         help='Github REPOsitory name to whose issue tracker you want to copy Asana tasks. '
              'If none is specified a list of available repositories is printed.')
-    parser.add_option(
+    parser.add_argument(
         '-i', '--interactive', action='store_true',
         help='request confirmation before attempting to copy each task to Github')
-    parser.add_option(
+    parser.add_argument(
         '--copy-completed-tasks', action='store_true', dest='copy_completed',
         help='completed Asana tasks are not copied. Use this switch to force copy of completed tasks.')
-    parser.add_option(
+    parser.add_argument(
         '--dont-apply-tag', action='store_true', dest='dont_apply_tag',
         help='every task copied to Github gets a tag copied-to-github at Asana. Use this switch to disable it.')
-    parser.add_option(
+    parser.add_argument(
         '--dont-apply-label', action='store_true', dest='dont_apply_label',
         help='every issue copied to Github gets a label copied-from-asana at Github. Use this switch to disable it.')
-    parser.add_option(
+    parser.add_argument(
         '--dont-apply-project-label', action='store_true', dest='dont_apply_project_label',
         help='Asana project name is applied as label to the copied task at Github. Use this switch to disable it.')
-    parser.add_option(
+    parser.add_argument(
         '--dont-update-story', action='store_true', dest='dont_update_story',
         help='link of copied Github issues is added to Asana task story. Use this switch to disable it.')
-    parser.add_option(
+    parser.add_argument(
         '--dont-copy-stories', action='store_true', dest='dont_copy_stories',
         help='Asana task stories are added as comment to the Github issue. Use this switch to disable it.')
+    parser.add_argument('-v', '--verbose', action='store_true')
     return parser
 
 
@@ -385,23 +386,21 @@ def migrate_asana_to_github(asana_api_object, project_id, git_repo, options):
 
 def main():
     parser = parse()
-    (options, args) = parser.parse_args()
+    options = parser.parse_args()
 
-    if len(args) != 3:
-        if len(args) == 0:
-            parser.error('Asana API Key is required')
-        if len(args) == 1:
-            parser.error('Github username is required')
-        if len(args) == 2:
-            parser.error('Github password is required')
-        exit(1)
+    if not options.asana_api_key:
+        parser.error('Asana API Key is required')
+    if not options.username:
+        parser.error('Github username is required')
+    if not options.password:
+        parser.error('Github password is required')
 
-    asana_api = asana.AsanaAPI(args[0], debug=False)
+    asana_api = asana.AsanaAPI(options.asana_api_key, debug=options.verbose)
     project_id = get_project_id_from_asana(asana_api, options)
     if not project_id:
         exit(1)
 
-    github_api = Github(args[1], args[2])
+    github_api = Github(options.username, options.password)
     git_repo = get_repo_from_github(github_api, options)
     if not git_repo:
         exit(1)
