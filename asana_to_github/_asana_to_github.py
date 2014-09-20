@@ -10,8 +10,6 @@ import getch
 
 
 def parse():
-    """Returns OptionParser instance to parse the command line parameters"""
-
     parser = ArgumentParser()
     parser.add_argument('-u', '--username', help='GitHub username.')
     parser.add_argument('-p', '--password', help='GitHub password')
@@ -96,19 +94,17 @@ def ask_user_permission(a_task, task_id):
     return user_input == 'y'
 
 
-def get_label(git_repo, label_name):
+def get_or_create_label(git_repo, label_name, label_color='FFFFFF'):
     """Returns instance of Label() or None
 
     :Parameter:
         - `git-repo` : repository at Github to whose issues tracker issues will be copied
         - `label_name`: Name of the label. Type string
     """
-
     try:
         label = git_repo.get_label(label_name.encode('utf-8'))
     except Exception:
-        label = None
-
+        label = git_repo.create_label(label_name, label_color)
     return label
 
 
@@ -191,15 +187,11 @@ def copy_task_to_github(asana_api_object, task, task_id, git_repo, options):
 
     labels = []
     if not options.dont_apply_label:
-        a_label = get_label(git_repo, 'copied-from-asana')
-        if not a_label:
-            a_label = git_repo.create_label('copied-from-asana', 'FFFFFF')
+        a_label = get_or_create_label(git_repo, 'copied-from-asana')
         labels.append(a_label)
     if not options.dont_apply_project_label:
         for project in task['projects']:
-            a_label = get_label(git_repo, project['name'])
-            if not a_label:
-                a_label = git_repo.create_label(project['name'], 'FFFFFF')
+            a_label = get_or_create_label(git_repo, project['name'])
             labels.append(a_label)
     print('Creating issue: {}'.format(task['name'].encode('utf-8')))
     meta = '#### Meta\n[Asana task](https://app.asana.com/0/{}/{}) was created at {}.'.format(
