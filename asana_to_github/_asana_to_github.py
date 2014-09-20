@@ -52,7 +52,7 @@ def parse():
     def read_config():
         try:
             with open('.asanaghrc') as f:
-                return [line.strip() for line in f.readlines()]
+                return [line.strip() for line in f.readlines() if (line.strip() and not line.startswith('#'))]
         except IOError:
             return []
 
