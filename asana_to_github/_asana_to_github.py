@@ -237,14 +237,14 @@ def migrate_asana_to_github(asana_api_object, project_id, git_repo, options):
     print('Fetching tasks from Asana')
     all_tasks = get_tasks(asana_api_object, project_id)
 
-    if len(all_tasks) == 0:
+    if not all_tasks:
         print('{}/{} does not have any task in it'.format(options.workspace, options.project))
         return
 
     for a_task in all_tasks:
         task = asana_api_object.get_task(a_task['id'])
         # Filter completed and incomplete tasks. Copy if task is incomplete or even completed tasks are to be copied
-        if not task['completed'] or options.copy_completed:
+        if not task['name'].endswith(':') and (options.copy_completed or not task['completed']):
             if options.interactive:
                 should_copy = ask_user_permission(task, a_task['id'])
             else:
