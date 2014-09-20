@@ -1,5 +1,6 @@
 from __future__ import print_function
 from argparse import ArgumentParser
+import sys
 
 from asana import asana
 from dateutil import parser as dtparser
@@ -47,7 +48,25 @@ def parse():
         '--dont-copy-stories', action='store_true', dest='dont_copy_stories',
         help='Asana task stories are added as comment to the Github issue. Use this switch to disable it.')
     parser.add_argument('-v', '--verbose', action='store_true')
-    return parser
+
+    def read_config():
+        try:
+            with open('.asanaghrc') as f:
+                return [line.strip() for line in f.readlines()]
+        except IOError:
+            return []
+
+    argv = sys.argv[1:] + read_config()
+    options = parser.parse_args(argv)
+
+    if not options.asana_api_key:
+        parser.error('Asana API Key is required')
+    if not options.username:
+        parser.error('Github username is required')
+    if not options.password:
+        parser.error('Github password is required')
+
+    return options
 
 
 def print_workspaces(asana_api_object):
@@ -385,16 +404,7 @@ def migrate_asana_to_github(asana_api_object, project_id, git_repo, options):
 
 
 def main():
-    parser = parse()
-    options = parser.parse_args()
-
-    if not options.asana_api_key:
-        parser.error('Asana API Key is required')
-    if not options.username:
-        parser.error('Github username is required')
-    if not options.password:
-        parser.error('Github password is required')
-
+    options = parse()
     asana_api = asana.AsanaAPI(options.asana_api_key, debug=options.verbose)
     project_id = get_project_id_from_asana(asana_api, options)
     if not project_id:
