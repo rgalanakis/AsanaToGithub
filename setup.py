@@ -1,25 +1,26 @@
 from setuptools import setup, find_packages
 from asana_to_github import __version__ as version
 
-install_requires = [
-        'PyGithub==1.9.1',
-        'asana==0.0.1',
-        'python-dateutil==1.5',
-        ]
-
-dependency_links = [
-        'https://github.com/talha131/asana/tarball/master#egg=asana-0.0.1',
-    ]
+install_requires = """PyGithub==1.25.0
+asana==0.0.5
+python-dateutil==2.2
+requests==2.4.1
+six==1.8.0
+wsgiref==0.1.2""".splitlines()
+#
+# dependency_links = [
+# 'https://github.com/talha131/asana/tarball/master#egg=asana-0.0.1',
+#     ]
 
 name = 'AsanaToGithub'
 
 setup(
-    name = name,
-    version = version,
-    author = 'Talha Mansoor',
-    author_email = 'talha131@gmail.com',
-    description = 'Simple script to copy items from Asana to Github issues',
-    long_description = """
+    name=name,
+    version=version,
+    author='Talha Mansoor',
+    author_email='talha131@gmail.com',
+    description='Simple script to copy items from Asana to Github issues',
+    long_description="""
     AsanaToGithub copies your tasks from an Asana project to your Github repository's issue tracker. It copies Asana task title, notes, comments and attachments to Github issues. It supports UTF-8 encoding.
 
     Asana task's title and note is created as Github issue. The comments and attachments of the task are added as a comment to the Github issue. AsanaToGithub supports linking the Asana task and Github issue together by means of adding links in the comments at both sites.
@@ -37,10 +38,10 @@ setup(
 
     This is a `sample Github issue <https://github.com/talha131/AsanaToGithub/issues/1>`_ copied from Asana using AsanaToGithub.
     """,
-    license = 'Apache License, (2.0)',
-    keywords = 'Asana, Github, Github issues, issue tracker',
-    url = 'https://github.com/talha131/asana-to-github',
-    download_url = 'https://github.com/talha131/AsanaToGithub/tarball/master',
+    license='Apache License, (2.0)',
+    keywords='Asana, Github, Github issues, issue tracker',
+    url='https://github.com/talha131/asana-to-github',
+    download_url='https://github.com/talha131/AsanaToGithub/tarball/master',
     packages=find_packages(),
     classifiers=[
         'Development Status :: 5 - Production/Stable',
@@ -50,10 +51,10 @@ setup(
         'Topic :: Utilities',
         'Environment :: Console',
         'Intended Audience :: Developers',
-        ],
+    ],
     install_requires=install_requires,
-    dependency_links = dependency_links,
-    entry_points = {
+    # dependency_links = dependency_links,
+    entry_points={
         'console_scripts': ['asanatogithub = asana_to_github.asana_to_github:main']
-        }
-    )
+    }
+)
