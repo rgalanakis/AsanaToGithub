@@ -6,6 +6,8 @@ from asana import asana
 from dateutil import parser as dtparser
 from github import Github
 
+import getch
+
 
 def parse():
     """Returns OptionParser instance to parse the command line parameters"""
@@ -87,9 +89,11 @@ def ask_user_permission(a_task, task_id):
     print('Task title: {}'.format(a_task['name'].encode('utf-8')))
     print('URL: https://app.asana.com/0/{}/{}'.format(a_task['workspace']['id'], task_id))
     user_input = None
-    while user_input is not 'y' and user_input is not 'n':
-        user_input = raw_input('Copy it to Github [y/n]')
-    return True if user_input == 'y' else False
+    while user_input != 'y' and user_input != 'n':
+        sys.stdout.write('Copy it to Github? [y/n] ')
+        user_input = getch.getch()
+    sys.stdout.write(user_input + '\n')
+    return user_input == 'y'
 
 
 def get_label(git_repo, label_name):
