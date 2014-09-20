@@ -15,17 +15,11 @@ def parse():
     parser.add_argument('-p', '--password', help='GitHub password')
     parser.add_argument('-a', '--asana-api-key', dest='asana_api_key', help='Asana API Key.')
     parser.add_argument(
-        '-w', '--workspace',
-        help='WORKSPACE name which has the project you want to copy to Github. '
-             'If none is specified a list of available workspaces is printed.')
-    parser.add_argument(
-        '-P', '--project',
-        help='PROJECT name which has the items you want to copy to Github. '
-             'If none is specified a list of available projects is printed.')
+        '-P', '--projectid', type=int,
+        help='PROJECT ID which has the items you want to copy to Github.')
     parser.add_argument(
         '-r', '--repo',
-        help='Github REPOsitory name to whose issue tracker you want to copy Asana tasks. '
-             'If none is specified a list of available repositories is printed.')
+        help='Github REPOsitory name to whose issue tracker you want to copy Asana tasks.')
     parser.add_argument(
         '-i', '--interactive', action='store_true',
         help='request confirmation before attempting to copy each task to Github')
@@ -69,68 +63,6 @@ def parse():
     return options
 
 
-def print_workspaces(asana_api_object):
-    """Prints a list of available workspaces on stdout
-    
-    :Parameter:
-        - `asana_api_object`: an instance of Asana
-    """
-
-    my_spaces = asana_api_object.list_workspaces()
-    print('Following Asana workspaces are available:')
-    for item in my_spaces:
-        print(item['name'])
-
-
-def get_workspace_id(asana_api_object, workspace):
-    """Returns id of the workspace
-
-    :Parameters:
-        - `asana_api_object`: an instance of Asana
-        - `workspace`: name or id of the workspace
-    """
-
-    my_spaces = asana_api_object.list_workspaces()
-    w_id = None
-    for item in my_spaces:
-        if item['name'].encode('utf-8') == workspace or item['id'] == workspace:
-            w_id = item['id']
-            break
-    return w_id
-
-
-def print_projects(asana_api_object, workspace_id):
-    """Prints a list of available projects in the workspace on stdout
-    
-    :Parameters:
-        - `asana_api_object`: an instance of Asana
-        - `workspace_id`: id of the workspace whose projects are to be listed
-    """
-
-    my_projects = asana_api_object.list_projects(workspace_id)
-    print('Following projects are available in it:')
-    for item in my_projects:
-        print(item['name'])
-
-
-def get_project_id(asana_api_object, workspace_id, project):
-    """Returns id of the project 
-    
-    :Parameters:
-        - `asana_api_object`: an instance of Asana
-        - `workspace_id`: id of the workspace that has the project
-        - `project`: name of id of the project
-    """
-
-    my_projects = asana_api_object.list_projects(workspace_id)
-    p_id = None
-    for item in my_projects:
-        if item['name'].encode('utf-8') == project or item['id'] == project:
-            p_id = item['id']
-            break
-    return p_id
-
-
 def get_tasks(asana_api_object, project_id):
     """Returns all the tasks present in the project
     
@@ -140,90 +72,6 @@ def get_tasks(asana_api_object, project_id):
     """
 
     return asana_api_object.get_project_tasks(project_id)
-
-
-def get_project_id_from_asana(asana_api_object, options):
-    """Returns project id and handle cases when workspace or project is not specified at command line
-
-    :Parameters:
-        - `asana_api_object`: an instance of Asana
-        - `options`: options parsed by OptionParser
-    """
-
-    project_id = None
-    if not options.workspace:
-        print_workspaces(asana_api_object)
-    else:
-        workspace_id = get_workspace_id(asana_api_object, options.workspace)
-        if not workspace_id:
-            print('Workspace not found. Make sure you have entered correct workspace name.')
-        else:
-            print('Workspace {} found'.format(options.workspace))
-            if not options.project:
-                print_projects(asana_api_object, workspace_id)
-            else:
-                project_id = get_project_id(asana_api_object, workspace_id, options.project)
-                if not project_id:
-                    print('Project not found. Make sure you have entered correct project name.')
-                else:
-                    print('Project {} found'.format(options.project))
-    return project_id
-
-
-def print_repos(github_api_object):
-    """Prints a list of available repos on stdout
-    
-    :Parameter:
-        - `github_api_object`: an instance of Github
-    """
-
-    my_repos = github_api_object.get_user().get_repos()
-    print('Following Github repositories are available:')
-    for item in my_repos:
-        print(item.full_name)
-
-
-def get_repo(github_api_object, repo_full_name):
-    """Return an instance of repo
-    
-    :Parameters:
-        - `github_api_object`: an instance of Github
-        - `repo_full_name`: full name of the repo on Github, for example, talha131/try
-    """
-
-    my_repos = github_api_object.get_user().get_repos()
-    my_repo = None
-    for item in my_repos:
-        if item.full_name == repo_full_name:
-            my_repo = item
-            break
-    return my_repo
-
-
-def get_repo_from_github(github_api_object, options):
-    """Return an instance of repo and handle cases when repo is not specified or is invalid
-    
-    :Parameters:
-        - `github_api_object`: an instance of Github
-        - `options`: options parsed by OptionParser
-    """
-
-    my_repo = None
-    if not options.repo:
-        print_repos(github_api_object)
-    else:
-        my_repo = get_repo(github_api_object, options.repo)
-        if not my_repo:
-            print('Repository not found. Make sure you have entered complete repository name correctly.')
-        else:
-            print('Repository {} found.'.format(options.repo))
-            if not my_repo.has_issues:
-                print ('Issues tracker is disabled for this repo. '
-                       'Make sure you have enabled it in the repository settings at Github.')
-                my_repo = None
-            else:
-                print('Issue tracker is enabled')
-    return my_repo
 
 
 def ask_user_permission(a_task, task_id):
@@ -357,12 +205,12 @@ def copy_task_to_github(asana_api_object, task, task_id, git_repo, options):
     body = task['notes'].encode('utf-8') + '\n' + meta
     new_issue = git_repo.create_issue(task['name'], body, labels=labels)
 
-    """Add stories to Github"""
+    # Add stories to Github
     if not options.dont_copy_stories:
         print('Copying stories to Github')
         copy_stories_to_github(asana_api_object, task_id, new_issue)
 
-    """Update Asana"""
+    # Update Asana
     if not options.dont_apply_tag:
         print('Applying tag to Asana item')
         apply_tag_at_asana(asana_api_object, 'copied to github', task['workspace']['id'], task_id)
@@ -406,16 +254,11 @@ def migrate_asana_to_github(asana_api_object, project_id, git_repo, options):
 def main():
     options = parse()
     asana_api = asana.AsanaAPI(options.asana_api_key, debug=options.verbose)
-    project_id = get_project_id_from_asana(asana_api, options)
-    if not project_id:
-        exit(1)
-
     github_api = Github(options.username, options.password)
-    git_repo = get_repo_from_github(github_api, options)
-    if not git_repo:
-        exit(1)
 
-    migrate_asana_to_github(asana_api, project_id, git_repo, options)
+    git_repo = github_api.get_repo(options.repo)
+
+    migrate_asana_to_github(asana_api, options.projectid, git_repo, options)
 
     exit(0)
 
