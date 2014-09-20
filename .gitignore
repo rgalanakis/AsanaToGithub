@@ -5,3 +5,5 @@ lib/
 .project
 .idea/
 .asanaghrc
+*.pyc
+*.pyo
