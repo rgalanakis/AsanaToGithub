@@ -169,11 +169,11 @@ def copy_stories_to_github(asana_api_object, task_id, issue):
         if astory['type'] == 'system' and astory['text'][:9] == 'attached ':
             attachment = attachment + '1. [Link to attachment]({})\n'.format(astory['text'][9:])
 
-    if len(comment) > 0:
+    if comment:
         comment = '### Comments\n' + comment
-    if len(attachment) > 0:
+    if attachment:
         attachment = '### Attachments\n' + attachment
-    if len(comment) > 0 or len(attachment) > 0:
+    if comment or attachment:
         final_comment = attachment + '\n' + comment
         issue.create_comment(final_comment)
 
