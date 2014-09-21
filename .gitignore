@@ -7,3 +7,4 @@ lib/
 .asanaghrc
 *.pyc
 *.pyo
+.asanagh.cache
