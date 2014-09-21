@@ -11,11 +11,11 @@ from argparse import ArgumentParser
 import sys
 
 from asana import asana
-from dateutil import parser as dtparser
 from github import Github
 
-import taskcache
 import getch
+import issue_copier
+import taskcache
 
 
 def parse():
@@ -36,20 +36,8 @@ def parse():
         '--copy-completed-tasks', action='store_true', dest='copy_completed',
         help='completed Asana tasks are not copied. Use this switch to force copy of completed tasks.')
     parser.add_argument(
-        '--dont-apply-tag', action='store_true', dest='dont_apply_tag',
-        help='every task copied to Github gets a tag copied-to-github at Asana. Use this switch to disable it.')
-    parser.add_argument(
-        '--dont-apply-label', action='store_true', dest='dont_apply_label',
-        help='every issue copied to Github gets a label copied-from-asana at Github. Use this switch to disable it.')
-    parser.add_argument(
-        '--dont-apply-project-label', action='store_true', dest='dont_apply_project_label',
-        help='Asana project name is applied as label to the copied task at Github. Use this switch to disable it.')
-    parser.add_argument(
         '--dont-update-story', action='store_true', dest='dont_update_story',
         help='link of copied Github issues is added to Asana task story. Use this switch to disable it.')
-    parser.add_argument(
-        '--dont-copy-stories', action='store_true', dest='dont_copy_stories',
-        help='Asana task stories are added as comment to the Github issue. Use this switch to disable it.')
     parser.add_argument(
         '--use-cache', action='store_true', dest='use_cache',
         help='If provided, use a cache file so the same Asana tasks are not processed over and over.'
@@ -96,97 +84,6 @@ def ask_user_permission(task, reponame):
     return user_input == 'y'
 
 
-def get_or_create_label(git_repo, label_name, label_color='FFFFFF'):
-    """Returns a new GitHub Issue, creating it if it does not already exist.
-
-    :param label_name: The label name to fetch or create.
-    :param label_color: If the label does not exist and is created, it will have this color.
-    """
-    try:
-        label = git_repo.get_label(label_name.encode('utf-8'))
-    except Exception:
-        label = git_repo.create_label(label_name, label_color)
-    return label
-
-
-def apply_tag_at_asana(asana_api, tag_title, workspace_id, task_id):
-    """Applies a tag to the Asana task in the given workspace.
-    If the tag does not exist, it will be created.
-    """
-
-    tag_id = None
-    all_tags = asana_api.get_tags(workspace_id)
-    for atag in all_tags:
-        if atag['name'] == tag_title:
-            tag_id = atag['id']
-            break
-    if not tag_id:
-        new_tag = asana_api.create_tag(tag_title, workspace_id)
-        tag_id = new_tag['id']
-
-    asana_api.add_tag_task(task_id, tag_id)
-
-
-def copy_stories_to_github(asana_api, task_id, issue):
-    """Copy task stories (comments) and attachments from Asana to Github (in a comment).
-    """
-
-    comment = ''
-    attachment = ''
-    all_stories = asana_api.list_stories(task_id)
-    for astory in all_stories:
-        if astory['type'] == 'comment':
-            the_time = dtparser.parse(astory['created_at'])
-            the_time = the_time.strftime('%b-%d-%Y %H:%M %Z')
-            comment = comment + """*{}*: **{}** wrote '{}'\n""".format(
-                the_time, astory['created_by']['name'].encode('utf-8'),
-                astory['text'].encode('utf-8').replace('\n', ''))
-        if astory['type'] == 'system' and astory['text'][:9] == 'attached ':
-            attachment = attachment + '1. [Link to attachment]({})\n'.format(astory['text'][9:])
-
-    if comment:
-        comment = '### Comments\n' + comment
-    if attachment:
-        attachment = '### Attachments\n' + attachment
-    if comment or attachment:
-        final_comment = attachment + '\n' + comment
-        issue.create_comment(final_comment)
-
-
-def copy_task_to_github(asana_api, task, git_repo, options):
-    """Copy an Asana task to a Github issue."""
-
-    labels = []
-    if not options.dont_apply_label:
-        a_label = get_or_create_label(git_repo, 'copied-from-asana')
-        labels.append(a_label)
-    if not options.dont_apply_project_label:
-        for project in task['projects']:
-            a_label = get_or_create_label(git_repo, project['name'])
-            labels.append(a_label)
-    print('Creating issue: {}'.format(task['name'].encode('utf-8')))
-    meta = '#### Meta\n[Asana task](https://app.asana.com/0/{}/{}) was created at {}.'.format(
-        task['workspace']['id'], task['id'], dtparser.parse(task['created_at']).strftime('%b-%d-%Y %H:%M %Z'))
-    if task['due_on']:
-        meta = meta + ' It is due on {}.'.format(dtparser.parse(task['due_on']).strftime('%b-%d-%Y'))
-    body = task['notes'].encode('utf-8') + '\n' + meta
-    new_issue = git_repo.create_issue(task['name'], body, labels=labels)
-
-    # Add stories to Github
-    if not options.dont_copy_stories:
-        print('Copying stories to Github')
-        copy_stories_to_github(asana_api, task['id'], new_issue)
-
-    # Update Asana
-    if not options.dont_apply_tag:
-        print('Applying tag to Asana item')
-        apply_tag_at_asana(asana_api, 'copied to github', task['workspace']['id'], task['id'])
-    if not options.dont_update_story:
-        story = '{}{}'.format('This task can be seen at ', new_issue.html_url.encode('utf-8'))
-        print('Updating story of Asana item')
-        asana_api.add_story(task['id'], story)
-
-
 def could_copy(simple_task, cache):
     """Return True if the task should potentially be copied
     (based on name and cache state).
@@ -216,7 +113,7 @@ def migrate_asana_to_github(asana_api, project_id, git_repo, options):
             if options.interactive:
                 should_copy = ask_user_permission(task, options.repo)
             if should_copy:
-                copy_task_to_github(asana_api, task, git_repo, options)
+                issue_copier.create_github_issue(asana_api, task, git_repo, options)
             else:
                 should_set_in_cache = False
                 print('Task skipped.')
