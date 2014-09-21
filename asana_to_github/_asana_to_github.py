@@ -1,3 +1,10 @@
+"""
+Some vocabulary:
+
+- ``task`` is an Asana API task object.
+- ``git_repo`` is a Github API repo object.
+- ``options`` are the parsed options.
+"""
 from __future__ import print_function
 from argparse import ArgumentParser
 import Queue
@@ -69,12 +76,9 @@ def parse():
 
 
 def ask_user_permission(task):
-    """Asks user permission to copy the task
+    """Asks user permission to copy the task.
 
-    :Parameters:
-        - `task`: Asana task object
-    :Returns:
-        True or False depending on the user response
+    :return: True or False depending on the user response.
     """
 
     print('Task title: {}'.format(task['name'].encode('utf-8')))
@@ -88,11 +92,10 @@ def ask_user_permission(task):
 
 
 def get_or_create_label(git_repo, label_name, label_color='FFFFFF'):
-    """Returns instance of Label() or None
+    """Returns a new GitHub Issue, creating it if it does not already exist.
 
-    :Parameter:
-        - `git-repo` : repository at Github to whose issues tracker issues will be copied
-        - `label_name`: Name of the label. Type string
+    :param label_name: The label name to fetch or create.
+    :param label_color: If the label does not exist and is created, it will have this color.
     """
     try:
         label = git_repo.get_label(label_name.encode('utf-8'))
@@ -102,13 +105,8 @@ def get_or_create_label(git_repo, label_name, label_color='FFFFFF'):
 
 
 def apply_tag_at_asana(asana_api, tag_title, workspace_id, task_id):
-    """Applies a tag to task
-
-    :Parameters:
-        - `asana_api`: an instance of Asana
-        - `tag_title`: name of the tag. Type string.
-        - `workspace_id`: id of the workspace in which tag is created
-        - `task_id`: id of the task on which tag is applied
+    """Applies a tag to the Asana task in the given workspace.
+    If the tag does not exist, it will be created.
     """
 
     tag_id = None
@@ -125,12 +123,7 @@ def apply_tag_at_asana(asana_api, tag_title, workspace_id, task_id):
 
 
 def copy_stories_to_github(asana_api, task_id, issue):
-    """Copy task story from Asana to Github
-
-    :Parameters:
-        - `asana_api`: an instance of Asana
-        - `task_id`: task id
-        - `issue`: instance of class Issue to which comments are added
+    """Copy task stories (comments) and attachments from Asana to Github (in a comment).
     """
 
     comment = ''
@@ -156,16 +149,7 @@ def copy_stories_to_github(asana_api, task_id, issue):
 
 
 def copy_task_to_github(asana_api, task, git_repo, options):
-    """Copy tasks from Asana to Github
-
-    :Parameters:
-        - `asana_api`: an instance of Asana
-        - `a_task`: Asana task object
-        - `task_id`: task id
-        - `git_repo`: repository at Github to whose issues tracker issues will be copied
-        - `options`: options parsed by OptionParser
-    """
-
+    """Copy an Asana task to a Github issue."""
     labels = []
     if not options.dont_apply_label:
         a_label = get_or_create_label(git_repo, 'copied-from-asana')
@@ -198,6 +182,15 @@ def copy_task_to_github(asana_api, task, git_repo, options):
 
 
 def copy_all_tasks_to_github(tasks_queue, finished_event, asana_api, git_repo, options):
+    """Get Asana tasks from ``tasks_queue`` and copy them to Github.
+    Set the ``finished_event`` when completed.
+
+    :type tasks_queue: Queue.Queue
+    :param tasks_queue: Queue filled with Asana tasks.
+        If ``DONE`` is received, assume there are no more tasks to process.
+    :type finished_event: threading.Event
+    :param finished_event: This function will set this event when all tasks have finished copying.
+    """
     while True:
         task = tasks_queue.get()
         if task == DONE:
@@ -207,7 +200,9 @@ def copy_all_tasks_to_github(tasks_queue, finished_event, asana_api, git_repo, o
 
 
 def fetch_asana_tasks(queue, asana_api, project_id):
-    """Send all Asana project tasks to the given channel and then close it."""
+    """Puts all Asana tasks for the given project into ``queue``.
+    Put ``DONE`` after all tasks have been processed.
+    """
     all_tasks = asana_api.get_project_tasks(project_id)
     for a_task in all_tasks:
         task = asana_api.get_task(a_task['id'])
@@ -222,13 +217,13 @@ def start_thread(target, *args):
 
 
 def migrate_asana_to_github(asana_api, project_id, git_repo, options):
-    """Manages copying of tasks from Asana to Github issues
+    """Manages copying of tasks from Asana to Github issues.
 
-    :Parameters:
-        - `asana_api`: an instance of Asana
-        - `project_id`: project id whose tasks are to be copied
-        - `git_repo`: repository at Github to whose issues tracker issues will be copied
-        - `options`: options parsed by OptionParser
+    **Implementation:** A thread fetches the tasks from Asana and puts them on a queue.
+    The main thread gets from this queue.
+    The main thread then puts tasks on another queue when it wants them copied.
+    Another thread gets from this queue and copies any tasks that are put into it.
+    A thread puts the ``DONE`` object on a queue to indicate there are no more items to process.
     """
     # Queue up three tasks. If we stop at some point, we don't want to burn our API rate limit for stuff we don't use.
     tasks_from_asana_q = Queue.Queue(3)
