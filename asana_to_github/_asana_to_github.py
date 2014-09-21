@@ -1,12 +1,17 @@
 from __future__ import print_function
 from argparse import ArgumentParser
+import Queue
 import sys
+import threading
 
 from asana import asana
 from dateutil import parser as dtparser
 from github import Github
 
 import getch
+
+
+DONE = object()
 
 
 def parse():
@@ -192,6 +197,30 @@ def copy_task_to_github(asana_api, task, git_repo, options):
         asana_api.add_story(task['id'], story)
 
 
+def copy_all_tasks_to_github(tasks_queue, finished_event, asana_api, git_repo, options):
+    while True:
+        task = tasks_queue.get()
+        if task == DONE:
+            break
+        copy_task_to_github(asana_api, task, git_repo, options)
+    finished_event.set()
+
+
+def fetch_asana_tasks(queue, asana_api, project_id):
+    """Send all Asana project tasks to the given channel and then close it."""
+    all_tasks = asana_api.get_project_tasks(project_id)
+    for a_task in all_tasks:
+        task = asana_api.get_task(a_task['id'])
+        queue.put(task)
+    queue.put(DONE)
+
+
+def start_thread(target, *args):
+    t = threading.Thread(target=target, args=args)
+    t.daemon = True
+    t.start()
+
+
 def migrate_asana_to_github(asana_api, project_id, git_repo, options):
     """Manages copying of tasks from Asana to Github issues
 
@@ -201,16 +230,18 @@ def migrate_asana_to_github(asana_api, project_id, git_repo, options):
         - `git_repo`: repository at Github to whose issues tracker issues will be copied
         - `options`: options parsed by OptionParser
     """
+    # Queue up three tasks. If we stop at some point, we don't want to burn our API rate limit for stuff we don't use.
+    tasks_from_asana_q = Queue.Queue(3)
+    start_thread(fetch_asana_tasks, tasks_from_asana_q, asana_api, project_id)
 
-    print('Fetching tasks from Asana')
-    all_tasks = asana_api.get_project_tasks(project_id)
+    tasks_to_copy_q = Queue.Queue()
+    copy_finished_event = threading.Event()
+    start_thread(copy_all_tasks_to_github, tasks_to_copy_q, copy_finished_event, asana_api, git_repo, options)
 
-    if not all_tasks:
-        print('{}/{} does not have any task in it'.format(options.workspace, options.project))
-        return
-
-    for a_task in all_tasks:
-        task = asana_api.get_task(a_task['id'])
+    while True:
+        task = tasks_from_asana_q.get()
+        if task == DONE:
+            break
         # Filter completed and incomplete tasks. Copy if task is incomplete or even completed tasks are to be copied
         if not task['name'].endswith(':') and (options.copy_completed or not task['completed']):
             if options.interactive:
@@ -218,16 +249,17 @@ def migrate_asana_to_github(asana_api, project_id, git_repo, options):
             else:
                 should_copy = True
             if should_copy:
-                copy_task_to_github(asana_api, task, git_repo, options)
+                tasks_to_copy_q.put(task)
             else:
                 print('Task skipped.')
+    tasks_to_copy_q.put(DONE)
+    copy_finished_event.wait()
 
 
 def main():
     options = parse()
     asana_api = asana.AsanaAPI(options.asana_api_key, debug=options.verbose)
     github_api = Github(options.username, options.password)
-
     git_repo = github_api.get_repo(options.repo)
 
     migrate_asana_to_github(asana_api, options.projectid, git_repo, options)
