@@ -14,6 +14,7 @@ from asana import asana
 from dateutil import parser as dtparser
 from github import Github
 
+import taskcache
 import getch
 
 
@@ -49,6 +50,14 @@ def parse():
     parser.add_argument(
         '--dont-copy-stories', action='store_true', dest='dont_copy_stories',
         help='Asana task stories are added as comment to the Github issue. Use this switch to disable it.')
+    parser.add_argument(
+        '--use-cache', action='store_true', dest='use_cache',
+        help='If provided, use a cache file so the same Asana tasks are not processed over and over.'
+    )
+    parser.add_argument(
+        '--cache-path', dest='cache_path', default='.asanagh.cache',
+        help='If --use-cache, this is the path the cache will be saved to. [default: %(default)s]'
+    )
     parser.add_argument('-v', '--verbose', action='store_true')
 
     def read_config():
@@ -178,11 +187,21 @@ def copy_task_to_github(asana_api, task, git_repo, options):
         asana_api.add_story(task['id'], story)
 
 
+def could_copy(simple_task, cache):
+    """Return True if the task should potentially be copied
+    (based on name and cache state).
+    """
+    if simple_task['name'].endswith(':'):
+        return False
+    return not cache.includes(simple_task)
+
+
 def migrate_asana_to_github(asana_api, project_id, git_repo, options):
     """Manages copying of tasks from Asana to Github issues."""
-
+    cache = taskcache.TaskCache(options.use_cache, options.cache_path)
     print('Fetching tasks from Asana')
     all_tasks = asana_api.get_project_tasks(project_id)
+    all_tasks = [t for t in all_tasks if could_copy(t, cache)]
 
     if not all_tasks:
         print('{}/{} does not have any task in it'.format(options.workspace, options.project))
@@ -191,7 +210,7 @@ def migrate_asana_to_github(asana_api, project_id, git_repo, options):
     for a_task in all_tasks:
         task = asana_api.get_task(a_task['id'])
         # Filter completed and incomplete tasks. Copy if task is incomplete or even completed tasks are to be copied
-        if not task['name'].endswith(':') and (options.copy_completed or not task['completed']):
+        if options.copy_completed or not task['completed']:
             if options.interactive:
                 should_copy = ask_user_permission(task)
             else:
@@ -200,6 +219,7 @@ def migrate_asana_to_github(asana_api, project_id, git_repo, options):
                 copy_task_to_github(asana_api, task, git_repo, options)
             else:
                 print('Task skipped.')
+        cache.set(task)
 
 
 def main():
