@@ -24,7 +24,7 @@ class TaskCache(object):
 
     def includes(self, task):
         cache = self.load()
-        return task['id'] in cache
+        return str(task['id']) in cache
 
     def set(self, task):
         cache = self.load()
