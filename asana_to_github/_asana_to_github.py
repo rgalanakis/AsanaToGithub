@@ -80,7 +80,7 @@ def parse():
     return options
 
 
-def ask_user_permission(task):
+def ask_user_permission(task, reponame):
     """Asks user permission to copy the task.
 
     :return: True or False depending on the user response.
@@ -90,7 +90,7 @@ def ask_user_permission(task):
     print('URL: https://app.asana.com/0/{}/{}'.format(task['workspace']['id'], task['id']))
     user_input = None
     while user_input != 'y' and user_input != 'n':
-        sys.stdout.write('Copy it to Github? [y/n] ')
+        sys.stdout.write('Copy it to %s? [y/n] ' % reponame)
         user_input = getch.getch()
     sys.stdout.write(user_input + '\n')
     return user_input == 'y'
@@ -209,17 +209,19 @@ def migrate_asana_to_github(asana_api, project_id, git_repo, options):
 
     for a_task in all_tasks:
         task = asana_api.get_task(a_task['id'])
+        should_set_in_cache = True
         # Filter completed and incomplete tasks. Copy if task is incomplete or even completed tasks are to be copied
         if options.copy_completed or not task['completed']:
+            should_copy = True
             if options.interactive:
-                should_copy = ask_user_permission(task)
-            else:
-                should_copy = True
+                should_copy = ask_user_permission(task, options.repo)
             if should_copy:
                 copy_task_to_github(asana_api, task, git_repo, options)
             else:
+                should_set_in_cache = False
                 print('Task skipped.')
-        cache.set(task)
+        if should_set_in_cache:
+            cache.set(task)
 
 
 def main():
