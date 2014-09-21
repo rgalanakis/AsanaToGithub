@@ -63,18 +63,17 @@ def parse():
     return options
 
 
-def ask_user_permission(a_task, task_id):
+def ask_user_permission(task):
     """Asks user permission to copy the task
 
     :Parameters:
-        - `a_task`: Asana task object
-        - `task_id`: task id
+        - `task`: Asana task object
     :Returns:
         True or False depending on the user response
     """
 
-    print('Task title: {}'.format(a_task['name'].encode('utf-8')))
-    print('URL: https://app.asana.com/0/{}/{}'.format(a_task['workspace']['id'], task_id))
+    print('Task title: {}'.format(task['name'].encode('utf-8')))
+    print('URL: https://app.asana.com/0/{}/{}'.format(task['workspace']['id'], task['id']))
     user_input = None
     while user_input != 'y' and user_input != 'n':
         sys.stdout.write('Copy it to Github? [y/n] ')
@@ -151,7 +150,7 @@ def copy_stories_to_github(asana_api, task_id, issue):
         issue.create_comment(final_comment)
 
 
-def copy_task_to_github(asana_api, task, task_id, git_repo, options):
+def copy_task_to_github(asana_api, task, git_repo, options):
     """Copy tasks from Asana to Github
 
     :Parameters:
@@ -172,7 +171,7 @@ def copy_task_to_github(asana_api, task, task_id, git_repo, options):
             labels.append(a_label)
     print('Creating issue: {}'.format(task['name'].encode('utf-8')))
     meta = '#### Meta\n[Asana task](https://app.asana.com/0/{}/{}) was created at {}.'.format(
-        task['workspace']['id'], task_id, dtparser.parse(task['created_at']).strftime('%b-%d-%Y %H:%M %Z'))
+        task['workspace']['id'], task['id'], dtparser.parse(task['created_at']).strftime('%b-%d-%Y %H:%M %Z'))
     if task['due_on']:
         meta = meta + ' It is due on {}.'.format(dtparser.parse(task['due_on']).strftime('%b-%d-%Y'))
     body = task['notes'].encode('utf-8') + '\n' + meta
@@ -181,7 +180,7 @@ def copy_task_to_github(asana_api, task, task_id, git_repo, options):
     # Add stories to Github
     if not options.dont_copy_stories:
         print('Copying stories to Github')
-        copy_stories_to_github(asana_api, task_id, new_issue)
+        copy_stories_to_github(asana_api, task['id'], new_issue)
 
     # Update Asana
     if not options.dont_apply_tag:
@@ -190,7 +189,7 @@ def copy_task_to_github(asana_api, task, task_id, git_repo, options):
     if not options.dont_update_story:
         story = '{}{}'.format('This task can be seen at ', new_issue.html_url.encode('utf-8'))
         print('Updating story of Asana item')
-        asana_api.add_story(task_id, story)
+        asana_api.add_story(task['id'], story)
 
 
 def migrate_asana_to_github(asana_api, project_id, git_repo, options):
@@ -215,11 +214,11 @@ def migrate_asana_to_github(asana_api, project_id, git_repo, options):
         # Filter completed and incomplete tasks. Copy if task is incomplete or even completed tasks are to be copied
         if not task['name'].endswith(':') and (options.copy_completed or not task['completed']):
             if options.interactive:
-                should_copy = ask_user_permission(task, a_task['id'])
+                should_copy = ask_user_permission(task)
             else:
                 should_copy = True
             if should_copy:
-                copy_task_to_github(asana_api, task, a_task['id'], git_repo, options)
+                copy_task_to_github(asana_api, task, git_repo, options)
             else:
                 print('Task skipped.')
 
