@@ -185,7 +185,7 @@ def copy_task_to_github(asana_api, task, git_repo, options):
     # Update Asana
     if not options.dont_apply_tag:
         print('Applying tag to Asana item')
-        apply_tag_at_asana(asana_api, 'copied to github', task['workspace']['id'], task_id)
+        apply_tag_at_asana(asana_api, 'copied to github', task['workspace']['id'], task['id'])
     if not options.dont_update_story:
         story = '{}{}'.format('This task can be seen at ', new_issue.html_url.encode('utf-8'))
         print('Updating story of Asana item')
