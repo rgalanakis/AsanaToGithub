@@ -31,6 +31,7 @@ class TaskCache(object):
         cache[task['id']] = {
             'name': task['name'],
             'copied_at': datetime.datetime.now().isoformat(),
-            'completed_state': task['completed']
+            'completed_state': task['completed'],
+            'project': ','.join([p['name'] for p in task['projects']])
         }
         self.save(cache)
