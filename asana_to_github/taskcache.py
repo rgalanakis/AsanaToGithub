@@ -30,6 +30,7 @@ class TaskCache(object):
         cache = self.load()
         cache[task['id']] = {
             'name': task['name'],
-            'copied_at': datetime.datetime.now().isoformat()
+            'copied_at': datetime.datetime.now().isoformat(),
+            'completed_state': task['completed']
         }
         self.save(cache)
