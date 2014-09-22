@@ -15,7 +15,7 @@ def _parse_asana_stories(asana_api, task):
             comments.append("*{time}*: **{who}** wrote '{what}'".format(
                 time=the_time,
                 who=astory['created_by']['name'].encode('utf-8'),
-                what=astory['text'].encode('utf-8').replace('\n', '')))
+                what=astory['text'].encode('utf-8').replace('\n', ' ')))
         if astory['type'] == 'system':
             if astory['text'][:9] == 'attached ':
                 attachments.append('1. [Link to attachment]({})'.format(astory['text'][9:]))
