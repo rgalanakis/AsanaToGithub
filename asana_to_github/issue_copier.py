@@ -58,6 +58,6 @@ def create_github_issue(asana_api, task, git_repo, options):
     new_issue = git_repo.create_issue(task['name'], body)
     
     if not options.dont_update_story:
-        story = 'This task can be seen at {}'.format('This task can be seen at ', new_issue.html_url.encode('utf-8'))
+        story = 'Task migrated to GitHub: {}'.format(new_issue.html_url.encode('utf-8'))
         print('Updating story of Asana item')
         asana_api.add_story(task['id'], story)

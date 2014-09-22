@@ -100,10 +100,6 @@ def migrate_asana_to_github(asana_api, project_id, git_repo, options):
     all_tasks = asana_api.get_project_tasks(project_id)
     all_tasks = [t for t in all_tasks if could_copy(t, cache)]
 
-    if not all_tasks:
-        print('{}/{} does not have any task in it'.format(options.workspace, options.project))
-        return
-
     for a_task in all_tasks:
         task = asana_api.get_task(a_task['id'])
         should_set_in_cache = True
