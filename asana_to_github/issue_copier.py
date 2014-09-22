@@ -55,7 +55,7 @@ def create_github_issue(asana_api, task, git_repo, options):
     bodylines.append('[Asana task]({url}) was created by {who} at {when}'.format(
         url=task_data['url'], who=task_data['created_by'], when=task_data['created_at']))
     body = '\n'.join(bodylines)
-    new_issue = git_repo.create_issue(task['name'], body)
+    new_issue = git_repo.create_issue(task['name'] or 'No Title', body)
     
     if not options.dont_update_story:
         story = 'Task migrated to GitHub: {}'.format(new_issue.html_url.encode('utf-8'))
